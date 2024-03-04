@@ -20,36 +20,86 @@ namespace b
 
         private void button2_Click(object sender, EventArgs e)
         {
-            SqlConnection con = null; // Declare con outside try block
+            var con = Configuration.getInstance().getConnection();
+            SqlCommand cmd = new SqlCommand("SELECT * FROM Student WHERE Status  = 5", con);
+            SqlDataAdapter da = new SqlDataAdapter(cmd);
+            DataTable dt = new DataTable();
+            da.Fill(dt);
+            dataGridView1.DataSource = dt;
+        }
+    
+        private int GetStatusId(string statusName)
+        {
+            int statusId = -1; // Default value if status is not found
+            var con = Configuration.getInstance().getConnection();
+            SqlCommand cmd = new SqlCommand("SELECT LookupId FROM Lookup WHERE Name = @Name", con);
+            cmd.Parameters.AddWithValue("@Name", statusName);
+            object result = cmd.ExecuteScalar();
+            if (result != null && result != DBNull.Value)
+            {
+                statusId = (int)result;
+            }
+            return statusId;
+        }
+        private void UpdateStudentStatus(string Id, string newStatus)
+        {
+            int newStatusId = GetStatusId(newStatus);
+            if (newStatusId == -1)
+            {
+                MessageBox.Show($"Status '{newStatus}' not found in the Lookup table.");
+                return;
+            }
+            var con = Configuration.getInstance().getConnection();
+            SqlCommand cmd = new SqlCommand("UPDATE Student SET Status = @NewStatusId WHERE Id = @Id", con);
+            cmd.Parameters.AddWithValue("@NewStatusId", newStatusId);
+            cmd.Parameters.AddWithValue("@Id", textBoxId.Text);
+            int rowsAffected = cmd.ExecuteNonQuery();
+            if (rowsAffected > 0)
+            {
+                MessageBox.Show("Student status deleted successfully.");
+            }
+            else
+            {
+                MessageBox.Show("No student found with the specified ID.");
+            }
+
+        }
+        public static int GetLookupId(string statusName)
+        {
+            int lookupId = -1; // Initialize to a default value
 
             try
             {
-                con = Configuration.getInstance().getConnection();
-                SqlCommand cmd = new SqlCommand("SELECT * FROM Student WHERE Active_Flag = 1", con);
+                using (SqlConnection con = Configuration.getInstance().getConnection())
+                {
+                    con.Open();
 
-                con.Open();
-                SqlDataAdapter da = new SqlDataAdapter(cmd);
-                DataTable dt = new DataTable();
-                da.Fill(dt);
+                    // Query to retrieve the ID from the Lookup table based on the provided status name
+                    string query = "SELECT LookupId FROM dbo.Lookup WHERE Name = @StatusName";
 
-                dataGridView1.DataSource = dt;
+                    using (SqlCommand cmd = new SqlCommand(query, con))
+                    {
+                        cmd.Parameters.AddWithValue("@StatusName", statusName);
+                        object result = cmd.ExecuteScalar();
+
+                        if (result != null)
+                        {
+                            lookupId = Convert.ToInt32(result);
+                        }
+                    }
+                }
             }
             catch (Exception ex)
             {
                 MessageBox.Show("Error: " + ex.Message);
             }
-            finally
-            {
-                if (con != null && con.State == ConnectionState.Open)
-                {
-                    con.Close();
-                }
-            }
+
+            return lookupId;
         }
         private void RefreshDataGridView()
         {
             var con = Configuration.getInstance().getConnection();
-            SqlCommand cmd = new SqlCommand("SELECT * FROM Student WHERE Active_Flag = 1", con);
+            SqlCommand cmd = new SqlCommand("SELECT * FROM Student WHERE Status  = 5", con);
             SqlDataAdapter da = new SqlDataAdapter(cmd);
             DataTable dt = new DataTable();
             da.Fill(dt);
@@ -58,34 +108,20 @@ namespace b
 
         private void button1_Click(object sender, EventArgs e)
         {
-            SqlConnection con = null; // Declare con outside try block
+            if (string.IsNullOrEmpty(textBoxId.Text))
+            {
+                MessageBox.Show("Please enter an registration Number to modify the status.");
+                return;
+            }
 
-            try
-            {
-                con = Configuration.getInstance().getConnection();
-                SqlCommand cmd = new SqlCommand("UPDATE Student SET Active_Flag = 0 WHERE Id = @Id", con);
-                cmd.Parameters.AddWithValue("@Id", int.Parse(textBoxId.Text)); // Assuming you have a textBoxId for the student ID
 
-                con.Open();
-                int rowsAffected = cmd.ExecuteNonQuery();
-                if (rowsAffected > 0)
-                {
-                    MessageBox.Show("Student deleted successfully");
-                    RefreshDataGridView();
-                }
-                else
-                {
-                    MessageBox.Show("No student found with the given ID");
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Error: " + ex.Message);
-            }
-            finally
-            {
-                con.Close();
-            }
+
+            UpdateStudentStatus(textBoxId.Text, "Inactive");
+        }
+
+        private void StuDelete_Load(object sender, EventArgs e)
+        {
+
         }
     }
 }

@@ -11,6 +11,7 @@ namespace b
         String ConnectionStr = @"Data Source=(local);Initial Catalog=ProjectB ;Integrated Security=True";
         SqlConnection con;
         private static Configuration _instance;
+        public string ConnectionString { get; internal set; }
         public static Configuration getInstance()
         {
             if (_instance == null)
